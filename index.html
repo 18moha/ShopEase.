@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ShopEase Business Management System - Cloud-based Inventory, POS, and Credit Ledger for local MSMEs.">
+    <title>ShopEase Business Management System</title>
+    <!-- Google Fonts & FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <div class="logo-icon">SE</div>
+                <span class="logo-text">ShopEase</span>
+            </div>
+            
+            <ul class="nav-links" style="height: calc(100% - 60px); display: flex; flex-direction: column;">
+                <li class="nav-item active" data-tab="dashboard" id="nav-dashboard">
+                    <a href="#dashboard"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a>
+                </li>
+                <li class="nav-item" data-tab="pos" id="nav-pos">
+                    <a href="#pos"><i class="fa-solid fa-cash-register"></i><span>Point of Sale (POS)</span></a>
+                </li>
+                <li class="nav-item" data-tab="inventory" id="nav-inventory">
+                    <a href="#inventory"><i class="fa-solid fa-boxes-stacked"></i><span>Inventory</span></a>
+                </li>
+                <li class="nav-item" data-tab="credit" id="nav-credit">
+                    <a href="#credit"><i class="fa-solid fa-credit-card"></i><span>Credit Ledger</span></a>
+                </li>
+                <li class="nav-item" id="nav-logout" style="margin-top: auto;">
+                    <a href="#logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i><span>Sign Out</span></a>
+                </li>
+            </ul>
+            
+            <div class="sidebar-footer">
+                <div class="system-status">
+                    <span class="status-dot"></span>
+                    <span>System Connected (SQLite)</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Wrapper -->
+        <main class="main-content">
+            <!-- App Header -->
+            <header class="app-header">
+                <div class="header-title-section">
+                    <h1 class="header-title" id="current-tab-title">Dashboard</h1>
+                    <span class="header-date" id="live-clock">Friday, July 17, 2026</span>
+                </div>
+                
+                <div class="header-controls">
+                    <!-- User Profile Badge -->
+                    <div class="user-profile-badge">
+                        <i class="fa-solid fa-circle-user"></i>
+                        <span id="header-user-display">Loading...</span>
+                    </div>
+                    
+                    <!-- Notification Bell Dropdown -->
+                    <div class="notification-bell-container" onclick="toggleNotificationDropdown()">
+                        <i class="fa-solid fa-bell bell-icon"></i>
+                        <span class="bell-badge" id="low-stock-badge">0</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Tab Container -->
+            <div class="view-container">
+                
+                <!-- 1. DASHBOARD VIEW -->
+                <section class="tab-view active" id="view-dashboard">
+
+
+                    <!-- Metrics Grid -->
+                    <div class="grid-4">
+                        <div class="metric-card">
+                            <div class="metric-card-info">
+                                <span class="metric-label">Total Revenue</span>
+                                <span class="metric-value" id="stat-revenue">KSh 0.00</span>
+                            </div>
+                            <div class="metric-icon revenue-icon"><i class="fa-solid fa-wallet"></i></div>
+                        </div>
+                        <div class="metric-card admin-only">
+                            <div class="metric-card-info">
+                                <span class="metric-label">Total Cost</span>
+                                <span class="metric-value" id="stat-cost">KSh 0.00</span>
+                            </div>
+                            <div class="metric-icon cost-icon"><i class="fa-solid fa-tags"></i></div>
+                        </div>
+                        <div class="metric-card admin-only">
+                            <div class="metric-card-info">
+                                <span class="metric-label">Net Profit</span>
+                                <span class="metric-value" id="stat-profit">KSh 0.00</span>
+                            </div>
+                            <div class="metric-icon profit-icon"><i class="fa-solid fa-chart-line"></i></div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-card-info">
+                                <span class="metric-label">Outstanding Debt</span>
+                                <span class="metric-value" id="stat-debt">KSh 0.00</span>
+                            </div>
+                            <div class="metric-icon debt-icon"><i class="fa-solid fa-scale-unbalanced"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Charts & Lists Row -->
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <h3 class="card-title"><i class="fa-solid fa-chart-column" style="color:var(--primary);"></i> Sales & Profitability Trend</h3>
+                            <div class="chart-container">
+                                <canvas id="dashboardChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <h3 class="card-title">
+                                <span><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i> Low Stock Warning</span>
+                                <span class="badge danger" id="low-stock-count-label">0 Items</span>
+                            </h3>
+                            <div class="table-wrapper" style="max-height: 250px;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Stock</th>
+                                            <th>Min</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="low-stock-table-body">
+                                        <!-- Dynamic items -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions Card -->
+                    <div class="card">
+                        <h3 class="card-title">
+                            <span><i class="fa-solid fa-clock-rotate-left" style="color:var(--secondary);"></i> Recent Sales Activity</span>
+                            <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="loadDashboardData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                        </h3>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Sale ID</th>
+                                        <th>Timestamp</th>
+                                        <th>Cashier</th>
+                                        <th>Items Qty</th>
+                                        <th>Payment Type</th>
+                                        <th>Total Paid</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-sales-table-body">
+                                    <!-- Dynamic items -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. WEB POS VIEW -->
+                <section class="tab-view" id="view-pos">
+
+
+                    <div class="pos-layout">
+                        <!-- Left Pane: Catalog & Search -->
+                        <div class="pos-catalog-panel">
+                            <div class="search-filter-row">
+                                <div class="input-container">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" class="search-input" id="pos-search-input" placeholder="Search product name..." onkeyup="filterPOSCatalog()">
+                                </div>
+
+                            </div>
+
+                            <div class="catalog-grid" id="pos-catalog-grid">
+                                <!-- Dynamic product cards -->
+                            </div>
+                        </div>
+
+                        <!-- Right Pane: Shopping Cart -->
+                        <div class="card pos-cart-panel">
+                            <h3 class="card-title">
+                                <span><i class="fa-solid fa-cart-shopping" style="color:var(--primary);"></i> Checkout Cart</span>
+                                <button class="btn btn-danger" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="clearCart()"><i class="fa-solid fa-trash-can"></i> Clear</button>
+                            </h3>
+                            
+                            <div class="cart-items-list" id="cart-items-list">
+                                <!-- Dynamic cart items or empty message -->
+                                <div class="empty-cart-message">
+                                    <i class="fa-solid fa-basket-shopping"></i>
+                                    <span>Your cart is empty. Click catalog items to add.</span>
+                                </div>
+                            </div>
+                            
+                            <div class="cart-summary">
+                                <div class="summary-row">
+                                    <span>Items count</span>
+                                    <span id="cart-summary-qty">0 items</span>
+                                </div>
+                                <div class="summary-row total">
+                                    <span>Total Amount</span>
+                                    <span id="cart-summary-total">KSh 0.00</span>
+                                </div>
+                                
+                                <!-- Payment Method Selector -->
+                                <div class="payment-method-select">
+                                    <span class="form-label">Payment Method</span>
+                                    <div class="payment-methods-grid">
+                                        <div class="pay-method-card active" data-method="Cash" onclick="selectPaymentMethod('Cash')">
+                                            <i class="fa-solid fa-money-bill-wave"></i>
+                                            <span>Cash</span>
+                                        </div>
+                                        <div class="pay-method-card" data-method="M-Pesa" onclick="selectPaymentMethod('M-Pesa')">
+                                            <i class="fa-solid fa-mobile-screen-button"></i>
+                                            <span>M-Pesa</span>
+                                        </div>
+                                        <div class="pay-method-card" data-method="Credit" onclick="selectPaymentMethod('Credit')">
+                                            <i class="fa-solid fa-credit-card"></i>
+                                            <span>Credit</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Customer Dropdown (Shows if Credit selected) -->
+                                <div class="form-group" id="pos-customer-group" style="display: none;">
+                                    <label class="form-label" for="pos-customer-select">Link Credit Customer</label>
+                                    <select class="form-select" id="pos-customer-select">
+                                        <!-- Loaded dynamically -->
+                                    </select>
+                                </div>
+                                
+                                <button class="btn btn-primary btn-block" id="checkout-submit-btn" onclick="submitCheckout()" disabled>
+                                    <i class="fa-solid fa-file-invoice-dollar"></i> Complete POS Checkout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. INVENTORY VIEW -->
+                <section class="tab-view" id="view-inventory">
+
+
+                    <!-- Inventory Table Card -->
+                    <div class="card">
+                        <div class="card-title" style="flex-wrap: wrap; gap: 1rem;">
+                            <div class="card-header-actions" style="flex-grow: 1;">
+                                <div class="input-container" style="max-width: 300px;">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" class="search-input" id="inventory-search-input" placeholder="Search stock inventory..." onkeyup="filterInventoryTable()">
+                                </div>
+                            </div>
+                            <div class="admin-only">
+                                <button class="btn btn-primary" onclick="openModal('add-product-modal')"><i class="fa-solid fa-plus"></i> Add New Product</button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Product ID</th>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Retail Price</th>
+                                        <th class="admin-only">Cost Price</th>
+                                        <th>Stock Level</th>
+                                        <th>Min Limit</th>
+                                        <th>Status</th>
+                                        <th class="admin-only">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventory-table-body">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. CREDIT LEDGER VIEW -->
+                <section class="tab-view" id="view-credit">
+
+
+                    <!-- Customer Ledger Card -->
+                    <div class="card">
+                        <div class="card-title">
+                            <span><i class="fa-solid fa-address-book" style="color:var(--primary);"></i> Registered Debtor Directory</span>
+                            <button class="btn btn-primary" onclick="openModal('add-customer-modal')"><i class="fa-solid fa-user-plus"></i> Register Customer</button>
+                        </div>
+                        
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Phone Number</th>
+                                        <th>Credit Limit</th>
+                                        <th>Current Debt</th>
+                                        <th>Risk Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="credit-table-body">
+                                    <!-- Dynamic customer rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+
+                
+            </div>
+        </main>
+    </div>
+
+    <!-- === TOAST NOTIFICATION === -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- === MODALS === -->
+
+    <!-- Modal 1: Add Product (Admin Only) -->
+    <div class="modal-backdrop" id="add-product-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Add New Product</h3>
+                <button class="modal-close-btn" onclick="closeModal('add-product-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-product-form" onsubmit="event.preventDefault(); submitAddProduct();">
+                    <div class="form-group">
+                        <label class="form-label" for="add-p-name">Product Name *</label>
+                        <input type="text" class="form-input" id="add-p-name" placeholder="e.g. Jogoo Maize Meal 2kg" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="add-p-desc">Description</label>
+                        <input type="text" class="form-input" id="add-p-desc" placeholder="e.g. Sifted corn flour">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label" for="add-p-retail">Retail Selling Price (KSh) *</label>
+                            <input type="number" step="0.01" class="form-input" id="add-p-retail" placeholder="200.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="add-p-cost">Wholesale Cost Price (KSh) *</label>
+                            <input type="number" step="0.01" class="form-input" id="add-p-cost" placeholder="160.00" required>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label" for="add-p-stock">Stock Quantity *</label>
+                            <input type="number" class="form-input" id="add-p-stock" placeholder="40" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="add-p-threshold">Low Stock Limit *</label>
+                            <input type="number" class="form-input" id="add-p-threshold" placeholder="10" required>
+                        </div>
+                    </div>
+                    <button type="submit" style="display: none;" id="add-product-hidden-submit"></button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('add-product-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="document.getElementById('add-product-hidden-submit').click()">Save Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Edit Product (Admin Only) -->
+    <div class="modal-backdrop" id="edit-product-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Product Details</h3>
+                <button class="modal-close-btn" onclick="closeModal('edit-product-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-product-form" onsubmit="event.preventDefault(); submitEditProduct();">
+                    <input type="hidden" id="edit-p-id">
+                    <div class="form-group">
+                        <label class="form-label" for="edit-p-name">Product Name *</label>
+                        <input type="text" class="form-input" id="edit-p-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="edit-p-desc">Description</label>
+                        <input type="text" class="form-input" id="edit-p-desc">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label" for="edit-p-retail">Retail Selling Price (KSh) *</label>
+                            <input type="number" step="0.01" class="form-input" id="edit-p-retail" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="edit-p-cost">Wholesale Cost Price (KSh) *</label>
+                            <input type="number" step="0.01" class="form-input" id="edit-p-cost" required>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label" for="edit-p-stock">Stock Quantity *</label>
+                            <input type="number" class="form-input" id="edit-p-stock" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="edit-p-threshold">Low Stock Limit *</label>
+                            <input type="number" class="form-input" id="edit-p-threshold" required>
+                        </div>
+                    </div>
+                    <button type="submit" style="display: none;" id="edit-product-hidden-submit"></button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" id="delete-product-btn" onclick="submitDeleteProduct()" style="margin-right: auto;"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                <button class="btn btn-secondary" onclick="closeModal('edit-product-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="document.getElementById('edit-product-hidden-submit').click()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Add Customer -->
+    <div class="modal-backdrop" id="add-customer-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Register New Credit Customer</h3>
+                <button class="modal-close-btn" onclick="closeModal('add-customer-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-customer-form" onsubmit="event.preventDefault(); submitAddCustomer();">
+                    <div class="form-group">
+                        <label class="form-label" for="add-c-name">Customer Full Name *</label>
+                        <input type="text" class="form-input" id="add-c-name" placeholder="e.g. John Mutua" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="add-c-phone">Phone Number (M-Pesa) *</label>
+                        <input type="tel" class="form-input" id="add-c-phone" placeholder="e.g. 0712345678" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="add-c-limit">Credit Limit Ceiling (KSh) *</label>
+                        <input type="number" class="form-input" id="add-c-limit" placeholder="2500" value="2000" required>
+                    </div>
+                    <button type="submit" style="display: none;" id="add-customer-hidden-submit"></button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('add-customer-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="document.getElementById('add-customer-hidden-submit').click()">Register</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: Customer Details & Repayment -->
+    <div class="modal-backdrop" id="customer-profile-modal">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="cust-profile-name">Customer Profile</h3>
+                <button class="modal-close-btn" onclick="closeModal('customer-profile-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Info cards -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="card" style="padding: 1rem; gap: 0.25rem; background-color: var(--bg-primary);">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Total Credit Balance</span>
+                        <span style="font-size: 1.25rem; font-weight: 700; color: var(--danger);" id="cust-profile-debt">KSh 0.00</span>
+                    </div>
+                    <div class="card" style="padding: 1rem; gap: 0.25rem; background-color: var(--bg-primary);">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Assigned Credit Limit</span>
+                        <span style="font-size: 1.25rem; font-weight: 700; color: var(--primary);" id="cust-profile-limit">KSh 2,000.00</span>
+                    </div>
+                </div>
+                
+                <!-- Repayment Form -->
+                <div class="card" style="padding: 1rem; gap: 0.75rem;">
+                    <h4 style="font-size: 0.9rem; font-weight: 700; color: var(--primary);"><i class="fa-solid fa-money-bill-transfer"></i> Record Debt Repayment</h4>
+                    <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
+                        <div class="form-group" style="flex-grow: 1;">
+                            <label class="form-label" for="repay-amount-input">Repayment Amount (KSh)</label>
+                            <input type="number" class="form-input" id="repay-amount-input" placeholder="e.g. 500">
+                        </div>
+                        <button class="btn btn-primary" onclick="submitRepayment()"><i class="fa-solid fa-check"></i> Save Payment</button>
+                    </div>
+                </div>
+
+                <!-- Ledger Audit History -->
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <h4 style="font-size: 0.9rem; font-weight: 700;"><i class="fa-solid fa-list-check"></i> Credit Audit Trail</h4>
+                    <div class="table-wrapper" style="max-height: 200px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Ref</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cust-profile-history-body">
+                                <!-- Dynamic history -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('customer-profile-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: Thermal Receipt Mock -->
+    <div class="modal-backdrop" id="receipt-modal">
+        <div class="modal" style="max-width: 350px;">
+            <div class="modal-header" style="background-color: var(--bg-secondary); border-bottom: none;">
+                <h3 class="modal-title">Receipt Generated</h3>
+                <button class="modal-close-btn" onclick="closeModal('receipt-modal')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1rem;">
+                <div class="receipt-box" id="receipt-box-content">
+                    <!-- Thermal paper content rendered here -->
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: none;">
+                <button class="btn btn-primary btn-block" onclick="closeModal('receipt-modal')"><i class="fa-solid fa-circle-check"></i> Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Screen Overlay -->
+    <div class="login-overlay" id="login-overlay">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">SE</div>
+                <h2>ShopEase Sign In</h2>
+                <p>Welcome back! Enter your login details.</p>
+            </div>
+            <form id="login-form" onsubmit="event.preventDefault(); submitLogin();">
+                <div class="form-group">
+                    <label class="form-label" for="login-username">Username</label>
+                    <input type="text" class="form-input" id="login-username" placeholder="e.g. admin or cashier" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="login-password">Password</label>
+                    <input type="password" class="form-input" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" style="margin-top: 0.5rem;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Sign In
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Client application controller -->
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
